@@ -36,7 +36,6 @@ class Board:
             [''] * 8,
             [''] * 8,
             [''] * 8,
-            [''] * 8,
             ['bp'] * 8,
             ['br', 'bn', 'bb', 'bq', 'bk', 'bb', 'bn', 'br']
         ]
@@ -189,16 +188,11 @@ class Board:
 
             # need to check that each square between s and e (exclusive, since e is checked in the main body of
             # is_legal_move
-            if e_row - s_row > 0:  # end row is larger than start row
-                r_step = 1
-            else:  # end row is smaller than start row
-                r_step = -1
-            if e_col - s_col > 0:  # end column is larger than start column
-                c_step = 1
-            else:  # end column is smaller than start column
-                c_step = -1
 
-            for col, row in zip(range(s_col + 1, e_col, c_step), range(s_row + 1, e_row, r_step)):
+            row_step = 1 if e_row > s_row else -1
+            col_step = 1 if e_col > s_col else -1
+
+            for col, row in zip(range(s_col + col_step, e_col, col_step), range(s_row + row_step, e_row, row_step)):
                 # we start at s_col+1, s_row+1 because the starting square is checked in the main body of the function
                 # we don't need to check the final square because that is also done in the main function.
                 if self.board[row][col] != '':
@@ -226,7 +220,11 @@ class Board:
 
         def queen_direction(s_col: int, s_row: int, e_col: int, e_row: int):
             # queens are just rooks wearing bishop's hats
-            if rook_direction(s_col, s_row, e_col, e_row) or bishop_direction(s_col, s_row, e_col, e_row):
+            try:
+                rook_direction(s_col, s_row, e_col, e_row)
+                return True
+            except IllegalMoveError:
+                bishop_direction(s_col, s_row, e_col, e_row)
                 return True
 
         def king_direction(s_col: int, s_row: int, e_col: int, e_row: int):
@@ -256,7 +254,7 @@ class Board:
             raise IllegalMoveError(f'Cannot move to a square occupied by your own piece ({end})')
 
         # check end doesn't contain a king
-        if ending_piece[1] == 'k':
+        if ending_piece != '' and [1] == 'k':
             raise IllegalMoveError(f'Cannot capture a king ({end}')
 
         # do the move
