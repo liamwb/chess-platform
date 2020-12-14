@@ -296,7 +296,6 @@ class Board:
 
         return test_board
 
-
     def move(self, start: str, end: str):
         """
         Moves the piece at position start to position end, checking for legality and promotion.
@@ -306,8 +305,11 @@ class Board:
         :raises IllegalMoveError: if the move is illegal
         """
 
+        # this will throw an error if a piece is being asked to move in an illegal way
+        test_board = self.is_legal_move(start, end)
+
+
+
         # todo check for en passant
 
         # todo update self.to_move
-
-        pass
