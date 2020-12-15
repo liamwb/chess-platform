@@ -42,6 +42,9 @@ class Board:
         self.to_move = to_move
         self.en_passsant_square = ''
 
+    def __iter__(self):
+        return BoardIterator(self)
+
     @staticmethod
     def convert_coordinate(c: str) -> Tuple[int, int]:
         """
@@ -124,11 +127,14 @@ class Board:
         If the piece function returns True, then this function creates a board object, which can be used to see if the
         move has created an illegal board state.
 
+        This function is only for single piece moves (i.e. not castling)
+
         :param start: the starting position of piece
         :param end: the final position of piece
         :raises IllegalMoveError: if the move is not legal
         :return: a board object representing self.board after the move
         """
+
         def pawn_direction(s_col: int, s_row: int, e_col: int, e_row: int) -> bool:
             # check we're moving forwards
             if self.to_move == 'w' and s_row >= e_row:  # the row number should get larger as white, not smaller
@@ -196,23 +202,26 @@ class Board:
                 # we start at s_col+1, s_row+1 because the starting square is checked in the main body of the function
                 # we don't need to check the final square because that is also done in the main function.
                 if self.board[row][col] != '':
-                    raise IllegalMoveError(f'Bishops cannot move through other pieces (piece on {row, col}) ({start, end})')
+                    raise IllegalMoveError(
+                        f'Bishops cannot move through other pieces (piece on {row, col}) ({start, end})')
 
             return True
 
         def rook_direction(s_col: int, s_row: int, e_col: int, e_row: int):
             if s_col == e_col:  # moving along a row
                 step = (e_row - s_row) // abs(e_row - s_row)  # +/- 1 depending on the direction we're moving in
-                for row in range(s_row+1, e_row, step):
+                for row in range(s_row + 1, e_row, step):
                     if self.board[row][s_col] != '':  # s_col == e_col
-                        raise IllegalMoveError(f'Rooks cannot move through pieces (piece on {row, s_col} ({start, end})')
+                        raise IllegalMoveError(
+                            f'Rooks cannot move through pieces (piece on {row, s_col} ({start, end})')
                 return True
 
             elif s_row == e_row:  # moving along a column
                 step = (e_col - s_col) // abs(e_col - s_col)  # +/- 1 depending on the direction we're moving in
-                for col in range(s_col+1, e_col, step):
+                for col in range(s_col + 1, e_col, step):
                     if self.board[s_row][col] != '':  # s_row == e_row
-                        raise IllegalMoveError(f'Rooks cannot move through pieces (piece on {s_row, col} ({start, end})')
+                        raise IllegalMoveError(
+                            f'Rooks cannot move through pieces (piece on {s_row, col} ({start, end})')
                 return True
 
             else:
@@ -232,8 +241,6 @@ class Board:
                 raise IllegalMoveError(f'The King can only move 1 in any direction ({start, end}')
             else:  # since the king only moves 1, and the start and end are checked in the main function
                 return True
-
-
 
         # utility stuff
         new_en_passant = False
@@ -296,20 +303,44 @@ class Board:
 
         return test_board
 
+    def is_legal_castle(self, move: str) -> Board:
+        """
+        Checks if a castling move is legal. Checks if the king is moving through check, or moving from check.
+        """
+
     def move(self, start: str, end: str):
         """
         Moves the piece at position start to position end, checking for legality and promotion.
 
-        :param start: a square in algebraic form
-        :param end: a square in algebraic form
+        :param start: a square in algebraic form, or an instruction to castle (O-O or O-O-O).
+        :param end: a square in algebraic form, or nothing if castling
         :raises IllegalMoveError: if the move is illegal
         """
 
         # this will throw an error if a piece is being asked to move in an illegal way
         test_board = self.is_legal_move(start, end)
 
-
-
         # todo check for en passant
 
         # todo update self.to_move
+
+
+class BoardIterator:
+    def __init__(self, board: Board, row=0, col=0):
+        self.board = board.board
+        self.row = row
+        self.col = col
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        res = self.board[self.row][self.col]
+        if self.row < 6:
+            self.row += 1
+        elif self.col < 6:
+            self.row = 0
+            self.col += 1
+        else:
+            raise StopIteration
+        return res
