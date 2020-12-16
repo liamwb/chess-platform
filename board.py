@@ -326,6 +326,7 @@ class Board:
 
 
 class BoardIterator:
+    """Implements an iterator for the board class. Iterates from top to bottom, left to right."""
     def __init__(self, board: Board, row=0, col=0):
         self.board = board.board
         self.row = row
@@ -335,12 +336,15 @@ class BoardIterator:
         return self
 
     def __next__(self):
-        res = self.board[self.row][self.col]
-        if self.row < 6:
-            self.row += 1
-        elif self.col < 6:
-            self.row = 0
-            self.col += 1
-        else:
+        if self.row > 7:
             raise StopIteration
-        return res
+        else:
+            res = self.board[self.col][self.row]
+            if self.row < 7:
+                self.row += 1
+            elif self.col < 7:
+                self.row = 0
+                self.col += 1
+            else:  # row == 7 and col == 7
+                self.row += 1
+            return res
