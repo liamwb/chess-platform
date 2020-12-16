@@ -41,6 +41,14 @@ class Board:
         ]
         self.to_move = to_move
         self.en_passsant_square = ''
+        self.moved_pieces = {  # this data is important for castling rules
+            'w_king_rook': False,
+            'w_king': False,
+            'w_queen_rook': False,
+            'b_king_rook': False,
+            'b_king': False,
+            'b_queen_rook': False
+        }
 
     def __iter__(self):
         return BoardIterator(self)
@@ -63,24 +71,36 @@ class Board:
         # the column gets converted from a letter to a number, the row simply decreases by 1
         return cols[c[0]], int(c[1]) - 1
 
-    def __setitem__(self, coordinate: str, piece: str) -> None:
+    def __setitem__(self, coordinate: str or Tuple[int, int], piece: str):
         """
         Modifies self.board such that the square referred to by coordinate contains piece
 
-        :param coordinate: a square on the chess board in algebraic form (e.g. a4, h7, g3, etc.)
+        :param coordinate: - a square on the chess board in algebraic form (e.g. a4, h7, g3, etc.), or
+                           - a pair of integer coordinates in index form
+
         :param piece: a chess piece (e.g. wp, bk, wn, etc.)
         """
-        # convert_coordinate handles error checking in terms of whether the square referred to by coordinate exists, but
-        # checking for move legality etc. is done elsewhere
-        col, row = self.convert_coordinate(coordinate)
+        if type(coordinate) == str:
+            # convert_coordinate handles error checking in terms of whether the square referred to by coordinate
+            # exists, but checking for move legality etc. is done elsewhere
+            col, row = self.convert_coordinate(coordinate)
+        elif type(coordinate) == tuple:
+            row, col = coordinate
+        else:
+            raise ValueError(f'expected str or Tuple[int, int], got {type(coordinate)}.')
         self.board[row][col] = piece
 
-    def __getitem__(self, coordinate: str) -> str:
+    def __getitem__(self, coordinate: str or Tuple[int, int]):
         """
-        :param coordinate: a coordinate in algebraic form
+        :param coordinate: a coordinate in algebraic form, or as a tuple in index form (row, col)
         :return: the piece at coordinate ('' if the square is empty)
         """
-        col, row = self.convert_coordinate(coordinate)
+        if type(coordinate) == str:
+            col, row = self.convert_coordinate(coordinate)
+        elif type(coordinate) == Tuple:
+            row, col = coordinate
+        else:
+            raise ValueError(f'expected str or Tuple[int, int], got {type(coordinate)}.')
         return self.board[row][col]
 
     def print_ascii(self):
@@ -282,7 +302,6 @@ class Board:
             piece_function = queen_direction
         else:
             raise ValueError(f'The piece {starting_piece} was not a valid piece type.')
-
         if piece_function(start_col, start_row, end_col, end_row):  # this will raise an error if the move is illegal
             test_board = Board(to_move=self.to_move)
             test_board.board = deepcopy(self.board)
@@ -303,10 +322,38 @@ class Board:
 
         return test_board
 
-    def is_legal_castle(self, move: str) -> Board:
+    def check_square_attacked(self, row: int, col: int) -> bool:
+        """checks if an enemy piece is attacking sqr"""
+        pass
+
+    def is_legal_castle(self, side: str) -> bool:
         """
-        Checks if a castling move is legal. Checks if the king is moving through check, or moving from check.
+
+        :param side: 'king' or 'queen'
+        :return:
         """
+        if self.to_move == 'w':
+            row = 0
+        else:  # colour is black
+            row = 7
+        col = 3  # king's starting position
+
+        if self.moved_pieces[f'{self.to_move}_king']:  # check if the king has moved
+            raise IllegalMoveError('Cannot castle after the king has moved')
+        if self.moved_pieces[f'{self.to_move}_{side}_rook']:  # check if the rook has moved
+            raise IllegalMoveError(f'Cannot castle {side}side after the {side} rook has moved')
+
+        # check if king is attacked
+        if side == 'king':
+            col_diff = -1
+        else:  # side == 'queen'
+            col_diff = 1
+
+        # check adjacent square
+
+        # check next square over
+
+
 
     def move(self, start: str, end: str):
         """
