@@ -54,9 +54,9 @@ class Board:
         return BoardIterator(self)
 
     @staticmethod
-    def convert_coordinate(c: str) -> Tuple[int, int]:
+    def convert_coordinate_to_index(c: str) -> Tuple[int, int]:
         """
-        Converts a move from algebraic form to index form (eg a4 -> 03)
+        Converts a coordinate from algebraic form to index form (eg a4 -> 03)
 
         :param c: must be a two character algebraic chess notation
         :raises AssertionError: if start is the wrong length, refers to nonexistent squares, or is formatted incorrectly
@@ -71,6 +71,14 @@ class Board:
         # the column gets converted from a letter to a number, the row simply decreases by 1
         return cols[c[0]], int(c[1]) - 1
 
+    @staticmethod
+    def convert_coordinate_to_algebraic(col: int, row: int) -> str:
+        """
+        Converts a coordinate from index form to algebraic form (eg (0, 3) -> a4)
+        """
+        columns = 'abcdefgh'
+        return columns[col] + str(row + 1)
+
     def __setitem__(self, coordinate: str or Tuple[int, int], piece: str):
         """
         Modifies self.board such that the square referred to by coordinate contains piece
@@ -83,7 +91,7 @@ class Board:
         if type(coordinate) == str:
             # convert_coordinate handles error checking in terms of whether the square referred to by coordinate
             # exists, but checking for move legality etc. is done elsewhere
-            col, row = self.convert_coordinate(coordinate)
+            col, row = self.convert_coordinate_to_index(coordinate)
         elif type(coordinate) == tuple:
             row, col = coordinate
         else:
@@ -96,7 +104,7 @@ class Board:
         :return: the piece at coordinate ('' if the square is empty)
         """
         if type(coordinate) == str:
-            col, row = self.convert_coordinate(coordinate)
+            col, row = self.convert_coordinate_to_index(coordinate)
         elif type(coordinate) == Tuple:
             row, col = coordinate
         else:
@@ -131,6 +139,41 @@ class Board:
                 return p in self.WHITE_PIECES
 
         return False
+
+    def check_diagonal(self, row: int, col: int, left_right: str, up_down: str, length: int = 8) -> str:
+        """
+        Checks along the given diagonal from the square given by row, col, returning the fist piece it finds, or
+        returning '' if it doesn't find a piece. Does not check the given square.
+
+        :param length: the number of squares to be checked
+        :param row: the starting row, in index form
+        :param col: the starting column, in index form
+        :param left_right: 'l' or 'r', depending on the direction desired
+        :param up_down: 'u' or 'd', depending on the direction desired
+        :return: the piece found
+        """
+        assert left_right == 'l' or left_right == 'r'
+        assert up_down == 'u' or up_down == 'd'
+
+        col_diff = -1 if left_right == 'l' else 1
+        row_diff = -1 if up_down == 'd' else 1
+        res = ''
+
+        for i in range(length):
+            # move to next square
+            row += row_diff
+            col += col_diff
+
+            # check if square is on board
+            if (not 0 <= row <= 7) or (not 0 <= col <= 7):
+                break
+
+            # check for piece
+            res = self[(row, col)]
+            if res:  # if res is a piece
+                break
+
+        return res
 
     def is_legal_move(self, start: str, end: str) -> Board:
         """
@@ -189,7 +232,7 @@ class Board:
             elif abs(s_col - s_row) == 1 and abs(s_row - s_col) == 1:
                 # check for en passant
                 if self.en_passsant_square:  # this will be non-empty only when an en passant is available
-                    enp_col, enp_row = self.convert_coordinate(self.en_passsant_square)
+                    enp_col, enp_row = self.convert_coordinate_to_index(self.en_passsant_square)
                     if e_col == enp_col and e_row == enp_row:  # this is the en passant case
                         return True
 
@@ -285,8 +328,8 @@ class Board:
             raise IllegalMoveError(f'Cannot capture a king ({end}')
 
         # do the move
-        start_col, start_row = self.convert_coordinate(start)
-        end_col, end_row = self.convert_coordinate(end)
+        start_col, start_row = self.convert_coordinate_to_index(start)
+        end_col, end_row = self.convert_coordinate_to_index(end)
 
         if piece_type == 'p':
             piece_function = pawn_direction
@@ -338,22 +381,30 @@ class Board:
             row = 7
         col = 3  # king's starting position
 
-        if self.moved_pieces[f'{self.to_move}_king']:  # check if the king has moved
+        # check if the king has moved
+        if self.moved_pieces[f'{self.to_move}_king']:
             raise IllegalMoveError('Cannot castle after the king has moved')
-        if self.moved_pieces[f'{self.to_move}_{side}_rook']:  # check if the rook has moved
+        # check if the rook has moved
+        if self.moved_pieces[f'{self.to_move}_{side}_rook']:
             raise IllegalMoveError(f'Cannot castle {side}side after the {side} rook has moved')
 
-        # check if king is attacked
+        # check to the left for kingside castling, to the right for queenside castling
         if side == 'king':
             col_diff = -1
         else:  # side == 'queen'
             col_diff = 1
 
+        # check if king is attacked
+        if self.check_square_attacked(row, col):
+            raise IllegalMoveError('Cannot castle from check.')
         # check adjacent square
-
+        if self.check_square_attacked(row, col + col_diff):
+            raise IllegalMoveError('Cannot castle through check.')
         # check next square over
+        if self.check_square_attacked(row, col + col_diff + col_diff):
+            raise IllegalMoveError('Cannot castle into check.')
 
-
+        return True
 
     def move(self, start: str, end: str):
         """
@@ -374,6 +425,7 @@ class Board:
 
 class BoardIterator:
     """Implements an iterator for the board class. Iterates from top to bottom, left to right."""
+
     def __init__(self, board: Board, row=0, col=0):
         self.board = board.board
         self.row = row
